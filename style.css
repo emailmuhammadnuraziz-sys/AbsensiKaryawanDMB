@@ -1,0 +1,295 @@
+/* ==========================================================================
+   SISTEM ABSENSI KARYAWAN — PT Sentralindo Teguh Gemilang
+   Design tokens
+   ========================================================================== */
+:root{
+  --color-primary: #1D4ED8;
+  --color-primary-dark: #1739A8;
+  --color-primary-light: #3B82F6;
+  --color-sky: #0EA5E9;
+  --color-bg: #F4F7FB;
+  --color-surface: #FFFFFF;
+  --color-text: #0F172A;
+  --color-muted: #64748B;
+  --color-border: #E2E8F0;
+  --color-success: #16A34A;
+  --color-success-dark: #15803D;
+  --color-danger: #DC2626;
+  --color-danger-bg: #FEF2F2;
+  --color-success-bg: #F0FDF4;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(29, 78, 216, 0.10);
+  --shadow-lg: 0 20px 48px rgba(29, 78, 216, 0.16);
+
+  --font-display: 'Manrope', 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+*{ box-sizing: border-box; }
+html, body{ height: 100%; }
+body{
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  background-image:
+    radial-gradient(circle at 10% -10%, rgba(29,78,216,0.06), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(14,165,233,0.06), transparent 45%);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+h1,h2,h3{ font-family: var(--font-display); margin: 0; }
+button{ font-family: inherit; }
+input, select, textarea{ font-family: inherit; }
+
+/* ==========================================================================
+   TOP BAR
+   ========================================================================== */
+.topbar{
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+}
+.topbar__inner{ display: flex; align-items: center; gap: 10px; }
+.topbar__logo{ width: 34px; height: 34px; object-fit: contain; border-radius: 8px; }
+.topbar__text{ display: flex; flex-direction: column; line-height: 1.25; }
+.topbar__text strong{ font-family: var(--font-display); font-size: 13px; color: var(--color-text); }
+.topbar__text span{ font-size: 12px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+
+.btn-install{
+  display: flex; align-items: center; gap: 6px;
+  background: var(--color-primary); color: #fff;
+  border: none; padding: 8px 14px; border-radius: var(--radius-full);
+  font-size: 12.5px; font-weight: 700; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn-install:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+/* ==========================================================================
+   LAYOUT / VIEWS
+   ========================================================================== */
+#app{ flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px 48px; }
+.view{ display: none; width: 100%; max-width: 460px; animation: viewIn .35s ease; }
+.view--active{ display: block; }
+@keyframes viewIn{
+  from{ opacity: 0; transform: translateY(8px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   HOME
+   ========================================================================== */
+.home{ display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 12px; }
+
+.home__radar{
+  position: relative;
+  width: 148px; height: 148px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+}
+.radar-core{
+  position: relative; z-index: 2;
+  width: 84px; height: 84px; border-radius: 50%;
+  background: linear-gradient(160deg, var(--color-primary), var(--color-sky));
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 28px rgba(29,78,216,0.35);
+}
+.radar-core img{ width: 46px; height: 46px; object-fit: contain; filter: brightness(0) invert(1); }
+.radar-ring{
+  position: absolute; border-radius: 50%;
+  border: 1.5px solid rgba(29,78,216,0.35);
+  animation: radarPulse 2.8s ease-out infinite;
+}
+.radar-ring.r1{ width: 84px; height: 84px; animation-delay: 0s; }
+.radar-ring.r2{ width: 84px; height: 84px; animation-delay: .9s; }
+.radar-ring.r3{ width: 84px; height: 84px; animation-delay: 1.8s; }
+@keyframes radarPulse{
+  0%{ width: 84px; height: 84px; opacity: .55; }
+  100%{ width: 148px; height: 148px; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce){
+  .radar-ring{ animation: none; opacity: 0; }
+}
+
+.home__title{
+  font-size: 21px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+.home__subtitle{ margin: 4px 0 22px; color: var(--color-muted); font-size: 13.5px; }
+
+.home__clock{
+  font-family: var(--font-display);
+  font-size: 44px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.home__date{ margin-top: 6px; color: var(--color-muted); font-size: 14px; text-transform: capitalize; }
+
+.home__actions{ display: flex; flex-direction: column; gap: 12px; width: 100%; margin-top: 32px; }
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+.btn{
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: var(--radius-md);
+  padding: 13px 20px; font-size: 14.5px; font-weight: 700;
+  cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, background .15s ease, opacity .15s ease;
+  user-select: none;
+}
+.btn:active{ transform: scale(0.98); }
+.btn:disabled{ opacity: .45; cursor: not-allowed; }
+
+.btn--primary{ background: var(--color-primary); color: #fff; box-shadow: var(--shadow-md); }
+.btn--primary:hover:not(:disabled){ background: var(--color-primary-dark); box-shadow: var(--shadow-lg); }
+
+.btn--outline{ background: #fff; color: var(--color-primary); border: 1.6px solid var(--color-primary); }
+.btn--outline:hover:not(:disabled){ background: #EFF4FF; }
+
+.btn--ghost{ background: transparent; color: var(--color-muted); }
+.btn--ghost:hover{ color: var(--color-text); }
+
+.btn--success{ background: var(--color-success); color: #fff; box-shadow: 0 8px 24px rgba(22,163,74,0.25); }
+.btn--success:hover:not(:disabled){ background: var(--color-success-dark); }
+
+.btn--big{ padding: 18px 20px; font-size: 15.5px; border-radius: var(--radius-lg); }
+.btn--full{ width: 100%; }
+
+.btn-back{
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: var(--radius-full);
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  color: var(--color-text); cursor: pointer; margin-bottom: 12px;
+}
+.btn-back:hover{ background: #EFF4FF; }
+
+/* ==========================================================================
+   CARD / FORMS
+   ========================================================================== */
+.card{
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px 26px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+}
+.card__title{ font-size: 19px; font-weight: 800; }
+.card__step{ margin: 4px 0 20px; color: var(--color-muted); font-size: 13px; }
+
+.field{ margin-bottom: 16px; }
+.field-row{ display: flex; gap: 12px; }
+.field-row .field{ flex: 1; }
+
+label{ display: block; font-size: 12.5px; font-weight: 700; color: var(--color-text); margin-bottom: 6px; }
+
+.input{
+  width: 100%;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  font-size: 14.5px;
+  color: var(--color-text);
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.input:focus{ outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.12); }
+.input--readonly{ background: var(--color-bg); color: var(--color-muted); }
+select.input{ appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; }
+textarea.input{ resize: vertical; min-height: 84px; }
+
+.field-error{ display: block; min-height: 16px; color: var(--color-danger); font-size: 12px; margin-top: 4px; }
+.char-count{ display: block; text-align: right; font-size: 11.5px; color: var(--color-muted); margin-top: 4px; }
+
+.step--hidden{ display: none; }
+.step__nav{ display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+.step__nav .btn--primary, .step__nav .btn--success{ flex: 1; }
+
+/* ==========================================================================
+   GPS
+   ========================================================================== */
+.gps-box{ text-align: center; padding: 8px 0 4px; }
+.gps-illustration{
+  width: 88px; height: 88px; margin: 0 auto 16px;
+  border-radius: 50%; background: #EFF4FF; color: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s ease, color .2s ease;
+}
+.gps-illustration.ok{ background: var(--color-success-bg); color: var(--color-success); }
+.gps-illustration.fail{ background: var(--color-danger-bg); color: var(--color-danger); }
+.gps-hint{ color: var(--color-muted); font-size: 13.5px; margin: 0 0 18px; }
+
+.gps-result{
+  margin-top: 16px; padding: 14px 16px; border-radius: var(--radius-md);
+  font-size: 13.5px; font-weight: 600; text-align: left; line-height: 1.5;
+}
+.gps-result.ok{ background: var(--color-success-bg); color: var(--color-success-dark); border: 1px solid #BBF7D0; }
+.gps-result.fail{ background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid #FECACA; }
+.gps-result small{ display: block; margin-top: 4px; color: var(--color-muted); font-weight: 500; }
+
+/* ==========================================================================
+   SELFIE
+   ========================================================================== */
+.selfie-box{ text-align: center; }
+.selfie-frame{
+  position: relative;
+  width: 100%; aspect-ratio: 3 / 4; max-width: 280px; margin: 0 auto 16px;
+  border-radius: var(--radius-lg); overflow: hidden;
+  background: #0F172A;
+  border: 3px solid var(--color-border);
+}
+.selfie-frame video, .selfie-frame img{
+  width: 100%; height: 100%; object-fit: cover;
+  transform: scaleX(-1); /* mirror front camera */
+}
+.selfie-frame__guide{
+  position: absolute; inset: 12%;
+  border: 2px dashed rgba(255,255,255,0.55);
+  border-radius: 50% / 40%;
+  pointer-events: none;
+}
+.selfie-actions{ display: flex; gap: 10px; justify-content: center; }
+.selfie-actions .btn{ flex: 1; max-width: 280px; }
+
+/* ==========================================================================
+   LOADING OVERLAY
+   ========================================================================== */
+.loading-overlay{
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(15,23,42,0.55);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; color: #fff; backdrop-filter: blur(2px);
+}
+.loading-overlay:not([hidden]){ display: flex; }
+.loading-spinner{
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.25); border-top-color: #fff;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+.footer{
+  text-align: center; padding: 16px; color: var(--color-muted); font-size: 11.5px;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media (min-width: 480px){
+  .home__clock{ font-size: 48px; }
+}
