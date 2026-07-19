@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * SISTEM ABSENSI KARYAWAN — PT Sentralindo Teguh Gemilang
+ * SISTEM ABSENSI KARYAWAN — PT Duta Makmur Bersama
  * Code.gs — Backend Google Apps Script
  * ============================================================================
  *
@@ -22,9 +22,9 @@
 const CONFIG = {
   // ID folder Google Drive tempat menyimpan foto selfie.
   // Cara mendapatkan: buka folder di Google Drive, salin bagian ID pada URL-nya
-  // Contoh URL: https://drive.google.com/drive/u/0/folders/1P7hao06PPXxhLJQHrG-6ucSDGeutDNQP
-  // ID-nya adalah: 1P7hao06PPXxhLJQHrG-6ucSDGeutDNQP
-  DRIVE_FOLDER_ID: 1P7hao06PPXxhLJQHrG-6ucSDGeutDNQP,
+  // Contoh URL: https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrSt
+  // ID-nya adalah: 1AbCdEfGhIjKlMnOpQrSt
+  DRIVE_FOLDER_ID: "PASTE_FOLDER_ID_GOOGLE_DRIVE_DI_SINI",
 
   SHEET_ABSEN_MASUK: "Absen Masuk",
   SHEET_ABSEN_IJIN: "Absen Ijin",
@@ -44,7 +44,7 @@ function doGet(e) {
   return ContentService
     .createTextOutput(JSON.stringify({
       status: "success",
-      message: "Web App Absensi PT Sentralindo Teguh Gemilang aktif.",
+      message: "Web App Absensi PT Duta Makmur Bersama aktif.",
       serverTime: getServerTime()
     }))
     .setMimeType(ContentService.MimeType.JSON);
