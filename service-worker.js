@@ -13,7 +13,6 @@ const APP_SHELL = [
   "./style.css",
   "./script.js",
   "./manifest.json",
-  "./assets/logo.png",
   "./icons/icon-72.png",
   "./icons/icon-96.png",
   "./icons/icon-128.png",
