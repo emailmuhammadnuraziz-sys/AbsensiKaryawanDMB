@@ -11,11 +11,10 @@ const CONFIG = {
   // Panduan lengkap ada di file PANDUAN-PEMULA.md
   SCRIPT_URL: "PASTE_URL_WEB_APP_GOOGLE_APPS_SCRIPT_DI_SINI",
 
-  // Koordinat lokasi kantor / pabrik. Ganti dengan koordinat asli Anda.
-  // Cara mendapatkan koordinat: buka Google Maps, klik kanan pada lokasi
-  // kantor, lalu klik angka koordinat yang muncul untuk menyalinnya.
-  officeLat: -6.300000,
-  officeLng: 107.150000,
+  // Koordinat lokasi kantor / pabrik: PT Sentralindo Teguh Gemilang 2
+  // Jl. Raya Fatahillah No.35, Kalijaya, Kec. Cikarang Bar., Kab. Bekasi, Jawa Barat 17530
+  officeLat: -6.2635782,
+  officeLng: 107.1338868,
 
   // Radius absen yang diizinkan, dalam meter.
   radiusMeters: 100,
