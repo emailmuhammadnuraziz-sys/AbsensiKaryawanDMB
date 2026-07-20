@@ -60,7 +60,17 @@ function onlyLetters(str){
 
 function showAlert(icon, title, text){
   if (window.Swal){
-    return Swal.fire({ icon, title, text, confirmButtonColor: "#1D4ED8" });
+    return Swal.fire({
+      icon, title, text,
+      buttonsStyling: false,
+      customClass: {
+        popup: "app-swal-popup",
+        title: "app-swal-title",
+        htmlContainer: "app-swal-text",
+        confirmButton: "app-swal-confirm btn btn--primary",
+        icon: "app-swal-icon"
+      }
+    });
   }
   alert(`${title}\n${text || ""}`);
 }
@@ -136,6 +146,14 @@ bindNameField("ijin-nama", "ijin-nama-error");
 /* ======================================================================
    7. ABSEN MASUK — STEP 1: DATA DIRI
    ====================================================================== */
+function setStepper(activeStep){
+  document.querySelectorAll(".stepper__seg").forEach((seg) => {
+    const segNum = Number(seg.dataset.seg);
+    seg.classList.toggle("is-done", segNum < activeStep);
+    seg.classList.toggle("is-active", segNum === activeStep);
+  });
+}
+
 function resetMasukForm(){
   $("masuk-nama").value = "";
   $("masuk-bagian").selectedIndex = 0;
@@ -148,6 +166,7 @@ function resetMasukForm(){
   $("masuk-step-2").classList.add("step--hidden");
   $("masuk-step-3").classList.add("step--hidden");
   $("masuk-progress").textContent = "Langkah 1 dari 3 — Data Diri";
+  setStepper(1);
 
   $("gps-result").hidden = true;
   $("gps-illustration").className = "gps-illustration";
@@ -186,6 +205,7 @@ $("masuk-to-step2").addEventListener("click", () => {
   $("masuk-step-1").classList.add("step--hidden");
   $("masuk-step-2").classList.remove("step--hidden");
   $("masuk-progress").textContent = "Langkah 2 dari 3 — Verifikasi Lokasi";
+  setStepper(2);
 });
 
 /* ======================================================================
@@ -257,6 +277,7 @@ $("masuk-to-step3").addEventListener("click", async () => {
   $("masuk-step-2").classList.add("step--hidden");
   $("masuk-step-3").classList.remove("step--hidden");
   $("masuk-progress").textContent = "Langkah 3 dari 3 — Ambil Selfie";
+  setStepper(3);
   await showAlert("info", "Perlihatkan Wajah & Seragam Anda", "Posisikan wajah dan seragam kerja Anda di dalam bingkai sebelum menekan tombol Ambil Selfie.");
 });
 
@@ -265,6 +286,7 @@ $("masuk-back-step2").addEventListener("click", () => {
   $("masuk-step-3").classList.add("step--hidden");
   $("masuk-step-2").classList.remove("step--hidden");
   $("masuk-progress").textContent = "Langkah 2 dari 3 — Verifikasi Lokasi";
+  setStepper(2);
 });
 
 /* ======================================================================
