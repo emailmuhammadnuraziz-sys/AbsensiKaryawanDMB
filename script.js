@@ -24,7 +24,13 @@ const CONFIG = {
   // sehingga karyawan tidak perlu menunggu lama saat mengirim absen,
   // namun wajah dan seragam tetap terlihat jelas untuk verifikasi.
   photoQuality: 0.55,
-  photoMaxWidth: 480
+  photoMaxWidth: 480,
+
+  // Pengaturan riwayat Nomor HP (disimpan di HP masing-masing karyawan
+  // lewat localStorage, supaya saat absen berikutnya tinggal pilih dari
+  // daftar, tidak perlu mengetik ulang dari awal).
+  phoneHistoryKey: "absensiRiwayatHp",
+  phoneHistoryMax: 5
 };
 
 /* ======================================================================
@@ -148,6 +154,64 @@ bindNameField("masuk-nama", "masuk-nama-error");
 bindNameField("ijin-nama", "ijin-nama-error");
 
 /* ======================================================================
+   6b. RIWAYAT NOMOR HP (localStorage, seperti riwayat di address bar)
+   ====================================================================== */
+function getPhoneHistory(){
+  try {
+    const raw = localStorage.getItem(CONFIG.phoneHistoryKey);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function renderPhoneHistory(){
+  const list = $("riwayat-hp");
+  if (!list) return;
+  list.innerHTML = "";
+  getPhoneHistory().forEach((nomor) => {
+    const opt = document.createElement("option");
+    opt.value = nomor;
+    list.appendChild(opt);
+  });
+}
+
+function savePhoneToHistory(nomor){
+  if (!nomor) return;
+  try {
+    let history = getPhoneHistory().filter((n) => n !== nomor);
+    history.unshift(nomor);
+    history = history.slice(0, CONFIG.phoneHistoryMax);
+    localStorage.setItem(CONFIG.phoneHistoryKey, JSON.stringify(history));
+    renderPhoneHistory();
+  } catch (e) {
+    /* localStorage tidak tersedia (mode privat dsb) — riwayat dilewati, fitur lain tetap jalan. */
+  }
+}
+
+renderPhoneHistory();
+
+function bindPhoneField(inputId, errorId){
+  const input = $(inputId);
+  const error = $(errorId);
+  input.addEventListener("input", () => {
+    const cursorPos = input.selectionStart;
+    const raw = input.value;
+    const cleaned = raw.replace(/[^0-9+]/g, "");
+    if (raw !== cleaned){
+      input.value = cleaned;
+      input.setSelectionRange(cursorPos, cursorPos);
+    }
+    error.textContent = "";
+  });
+}
+bindPhoneField("masuk-hp", "masuk-hp-error");
+
+function isValidPhone(nomor){
+  return /^[0-9+]{9,15}$/.test(nomor);
+}
+
+/* ======================================================================
    7. ABSEN MASUK — STEP 1: DATA DIRI
    ====================================================================== */
 function setStepper(activeStep){
@@ -160,9 +224,11 @@ function setStepper(activeStep){
 
 function resetMasukForm(){
   $("masuk-nama").value = "";
+  $("masuk-hp").value = "";
   $("masuk-bagian").selectedIndex = 0;
   $("masuk-shift").selectedIndex = 0;
   $("masuk-nama-error").textContent = "";
+  $("masuk-hp-error").textContent = "";
   state.masuk.lokasi = null;
   state.masuk.fotoBase64 = null;
 
@@ -186,11 +252,16 @@ function resetMasukForm(){
 
 function validasiStep1(){
   const nama = $("masuk-nama").value.trim();
+  const nomorHp = $("masuk-hp").value.trim();
   const bagian = $("masuk-bagian").value;
   const shift = $("masuk-shift").value;
 
   if (!nama || !onlyLetters(nama)){
     showAlert("warning", "Lengkapi Data", "Nama lengkap wajib diisi dan hanya boleh berisi huruf.");
+    return false;
+  }
+  if (!nomorHp || !isValidPhone(nomorHp)){
+    showAlert("warning", "Lengkapi Data", "Nomor HP wajib diisi dengan benar (9-15 digit, boleh diawali +).");
     return false;
   }
   if (!bagian){
@@ -380,6 +451,7 @@ $("btn-kirim-absen").addEventListener("click", async () => {
   const payload = {
     action: "absenMasuk",
     nama: $("masuk-nama").value.trim(),
+    nomorHp: $("masuk-hp").value.trim(),
     bagian: $("masuk-bagian").value,
     shift: $("masuk-shift").value,
     latitude: state.masuk.lokasi.lat,
@@ -401,6 +473,7 @@ $("btn-kirim-absen").addEventListener("click", async () => {
     toggleLoading(false);
 
     if (result.status === "success"){
+      savePhoneToHistory(payload.nomorHp);
       await showAlert("success", "Absen Berhasil Dikirim", `Absen masuk atas nama ${payload.nama} tercatat pada ${result.serverTime || ""}.`);
       showView("view-home");
     } else {
