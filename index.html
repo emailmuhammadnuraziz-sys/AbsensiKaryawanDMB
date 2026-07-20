@@ -120,7 +120,7 @@
 
         <div class="field">
           <label for="masuk-nama">Nama Lengkap</label>
-          <input type="text" id="masuk-nama" class="input" placeholder="Contoh: BUDI SANTOSO" autocomplete="off">
+          <input type="text" id="masuk-nama" class="input" placeholder="Contoh: Budi Santoso" autocomplete="off" autocapitalize="words">
           <span class="field-error" id="masuk-nama-error"></span>
         </div>
 
@@ -175,16 +175,9 @@
           <div class="selfie-frame" id="selfie-frame">
             <video id="selfie-video" autoplay playsinline muted></video>
             <img id="selfie-preview" hidden alt="Preview selfie">
-            <div class="selfie-frame__guide">
-              <svg viewBox="0 0 200 260" preserveAspectRatio="none" width="100%" height="100%" aria-hidden="true">
-                <polyline points="18,60 18,18 60,18" />
-                <polyline points="140,18 182,18 182,60" />
-                <polyline points="18,200 18,242 60,242" />
-                <polyline points="182,200 182,242 140,242" />
-              </svg>
-              <span class="selfie-frame__label">Perlihatkan Wajah &amp; Seragam</span>
-            </div>
+            <div class="selfie-frame__guide" aria-hidden="true"></div>
           </div>
+          <span class="selfie-frame__label">Perlihatkan Wajah &amp; Seragam</span>
           <canvas id="selfie-canvas" hidden></canvas>
 
           <div class="selfie-actions" id="selfie-actions-camera">
@@ -223,7 +216,7 @@
 
       <div class="field">
         <label for="ijin-nama">Nama Lengkap</label>
-        <input type="text" id="ijin-nama" class="input" placeholder="Contoh: BUDI SANTOSO" autocomplete="off">
+        <input type="text" id="ijin-nama" class="input" placeholder="Contoh: Budi Santoso" autocomplete="off" autocapitalize="words">
         <span class="field-error" id="ijin-nama-error"></span>
       </div>
 
