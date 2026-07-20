@@ -17,7 +17,7 @@ const CONFIG = {
   officeLng: 107.1338868,
 
   // Radius absen yang diizinkan, dalam meter.
-  radiusMeters: 100,
+  radiusMeters: 250,
 
   // Kualitas kompresi foto selfie (0.1 - 1.0) dan lebar maksimal (px).
   // Nilai ini sudah diatur agar ukuran file kecil (biasanya di bawah 100 KB)
