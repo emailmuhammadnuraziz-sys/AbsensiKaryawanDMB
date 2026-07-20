@@ -83,13 +83,14 @@ input, select, textarea{ font-family: inherit; }
 .topbar__text span{ font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .btn-install{
-  display: flex; align-items: center; gap: 6px;
+  display: none; align-items: center; gap: 6px;
   background: var(--ink); color: var(--gold-soft);
   border: none; padding: 8px 14px; border-radius: var(--radius-full);
   font-size: 12px; font-weight: 700; cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: transform .15s ease, box-shadow .15s ease;
 }
+.btn-install:not([hidden]){ display: flex; }
 .btn-install:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); }
 
 /* ==========================================================================
@@ -322,43 +323,34 @@ textarea.input{ resize: vertical; min-height: 84px; }
 .selfie-box{ text-align: center; }
 .selfie-frame{
   position: relative;
-  width: 100%; aspect-ratio: 3 / 4; max-width: 280px; margin: 0 auto 20px;
-  border-radius: var(--radius-lg); overflow: hidden;
+  width: 240px; aspect-ratio: 1 / 1; max-width: 240px; margin: 0 auto;
+  border-radius: 50%; overflow: hidden;
   background: var(--ink);
   border: 3px solid var(--border);
+  box-shadow: var(--shadow-md);
 }
 .selfie-frame video, .selfie-frame img{
   width: 100%; height: 100%; object-fit: cover;
   transform: scaleX(-1); /* mirror front camera */
 }
 .selfie-frame__guide{
-  position: absolute; inset: 8%;
+  position: absolute; inset: 6%;
+  border-radius: 50%;
+  border: 2px dashed var(--gold-line);
   pointer-events: none;
-  display: flex; align-items: flex-end; justify-content: center;
-}
-.selfie-frame__guide svg{ position: absolute; inset: 0; }
-.selfie-frame__guide polyline{
-  fill: none;
-  stroke: var(--gold-soft);
-  stroke-width: 5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px rgba(0,0,0,0.35));
 }
 .selfie-frame__label{
-  position: relative;
-  margin-bottom: 10px;
-  background: rgba(15,22,38,0.66);
-  color: #fff;
-  font-size: 11px;
+  display: block;
+  margin: 14px auto 20px;
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  backdrop-filter: blur(2px);
 }
-.selfie-actions{ display: flex; flex-direction: column; gap: 12px; }
+.selfie-actions{ display: none; flex-direction: column; gap: 12px; }
+.selfie-actions:not([hidden]){ display: flex; }
 .selfie-actions .btn{ width: 100%; }
 
 /* ==========================================================================
