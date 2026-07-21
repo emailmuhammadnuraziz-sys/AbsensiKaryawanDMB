@@ -278,6 +278,20 @@
       <p class="card__step" id="karu-subtitle">Pilih tanggal untuk melihat rekap absen masuk.</p>
 
       <p id="karu-loading" class="karu-loading" hidden>Memuat data rekap...</p>
+
+      <div id="karu-calendar" class="karu-calendar" hidden>
+        <div class="karu-calendar__header">
+          <button type="button" class="karu-calendar__nav" id="karu-cal-prev" aria-label="Bulan sebelumnya">&lsaquo;</button>
+          <input type="month" id="karu-cal-picker" class="karu-calendar__picker" aria-label="Pilih bulan dan tahun">
+          <button type="button" class="karu-calendar__nav" id="karu-cal-next" aria-label="Bulan berikutnya">&rsaquo;</button>
+        </div>
+        <div class="karu-calendar__weekdays">
+          <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+        </div>
+        <div class="karu-calendar__grid" id="karu-cal-grid"></div>
+        <p class="karu-cal-summary" id="karu-cal-summary"></p>
+      </div>
+
       <div id="karu-list" class="karu-list"></div>
       <p id="karu-empty" class="karu-empty" hidden></p>
 
