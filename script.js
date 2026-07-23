@@ -9,7 +9,7 @@
 const CONFIG = {
   // Tempel URL Web App Google Apps Script Anda di sini setelah deploy.
   // Panduan lengkap ada di file PANDUAN-PEMULA.md
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyK6mdL_TvDEVuzer41IP5XrJB31J7PlrN9iM0_QkT668S4jKahOKabortRSdx4PF4V_Q/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwP82DNrZaJnkcQ1SO2bcegXD4YMCEP72QlT-5EN8gAEV9Spy7jo-ivOeWlzxmjYd2WBw/exec",
 
   // Koordinat lokasi kantor / pabrik: PT Sentralindo Teguh Gemilang 2
   // Jl. Raya Fatahillah No.35, Kalijaya, Kec. Cikarang Bar., Kab. Bekasi, Jawa Barat 17530
@@ -44,10 +44,8 @@ const state = {
   },
   karu: {
     data: null,
-    level: "date",          // "date" | "shift" | "bagian" | "nama"
+    level: "date",          // "date" | "matrix"
     selectedDate: null,
-    selectedShift: null,
-    selectedBagian: null,
     calendarYear: null,
     calendarMonth: null
   },
@@ -579,9 +577,6 @@ $("btn-kirim-ijin").addEventListener("click", async () => {
 /* ======================================================================
    12. AKSES KARU — LOGIN & REKAP BERTINGKAT (Tanggal > Shift > Bagian > Nama)
    ====================================================================== */
-const KARU_BAGIAN_LIST = ["Wrapping", "Finishing", "Partisi", "Slitter", "Corrugator", "Loading", "CY/TK"];
-const KARU_SHIFT_LIST = ["Shift 1", "Shift 2", "Shift 3"];
-
 function karuParseTanggal(str){
   const parts = String(str).split("/");
   const d = Number(parts[0]), m = Number(parts[1]), y = Number(parts[2]);
@@ -592,47 +587,6 @@ function karuThumbUrl(driveUrl){
   if (!driveUrl) return "";
   const match = String(driveUrl).match(/\/d\/([a-zA-Z0-9_-]+)/);
   return match ? `https://drive.google.com/thumbnail?id=${match[1]}&sz=w100` : driveUrl;
-}
-
-function karuRow(title, meta, onClick){
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "list-row";
-
-  const text = document.createElement("span");
-  text.className = "list-row__text";
-  const strong = document.createElement("strong");
-  strong.textContent = title;
-  const small = document.createElement("small");
-  small.textContent = meta;
-  text.append(strong, small);
-
-  const arrow = document.createElement("span");
-  arrow.className = "list-row__arrow";
-  arrow.setAttribute("aria-hidden", "true");
-  arrow.textContent = "\u203A";
-
-  btn.append(text, arrow);
-  btn.addEventListener("click", onClick);
-  return btn;
-}
-
-function karuEmployeeRow(record){
-  const div = document.createElement("div");
-  div.className = "employee-row";
-
-  const img = document.createElement("img");
-  img.className = "employee-row__photo";
-  img.src = karuThumbUrl(record.fotoUrl);
-  img.alt = `Foto ${record.nama}`;
-  img.onerror = () => { img.style.visibility = "hidden"; };
-
-  const name = document.createElement("span");
-  name.className = "employee-row__name";
-  name.textContent = record.nama;
-
-  div.append(img, name);
-  return div;
 }
 
 function karuFormatMonthInput(year, month){
@@ -700,7 +654,7 @@ function renderKaruCalendar(){
 
     btn.addEventListener("click", () => {
       state.karu.selectedDate = dateStr;
-      state.karu.level = "shift";
+      state.karu.level = "matrix";
       renderKaru();
     });
 
@@ -729,80 +683,153 @@ $("karu-cal-picker").addEventListener("change", (e) => {
   if (y && m) karuSetCalendarMonth(y, m - 1);
 });
 
+/**
+ * renderKaruMatrix — membangun tabel matriks kehadiran bulanan.
+ * Baris = karyawan (urut sesuai kemunculan pertama di data, yang secara
+ * alami sudah kronologis karena sheet diisi lewat appendRow saat absen).
+ * Kolom = setiap tanggal di bulan yang sedang dipilih. Sel berisi titik
+ * hijau kalau karyawan tercatat absen pada tanggal itu, dengan tooltip
+ * berisi shift saat disentuh/di-hover.
+ */
+function renderKaruMatrix(){
+  const year = state.karu.calendarYear;
+  const month = state.karu.calendarMonth;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const data = state.karu.data || [];
+
+  const recordsBulanIni = data.filter((r) => {
+    const d = karuParseTanggal(r.tanggal);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
+
+  const table = $("karu-matrix");
+  table.innerHTML = "";
+
+  if (recordsBulanIni.length === 0){
+    $("karu-empty").hidden = false;
+    $("karu-empty").textContent = `Belum ada absen tercatat pada ${karuMonthNames()[month]} ${year}.`;
+    $("karu-matrix-wrap").hidden = true;
+    return;
+  }
+  $("karu-empty").hidden = true;
+  $("karu-matrix-wrap").hidden = false;
+
+  // Bangun daftar karyawan unik, urut berdasar kemunculan pertama.
+  const employees = []; // [{ nama, bagian, fotoUrl, days: { [day]: shift } }]
+  const indexByName = new Map();
+
+  recordsBulanIni.forEach((r) => {
+    const day = karuParseTanggal(r.tanggal).getDate();
+    if (!indexByName.has(r.nama)){
+      indexByName.set(r.nama, employees.length);
+      employees.push({ nama: r.nama, bagian: r.bagian, fotoUrl: r.fotoUrl, days: {} });
+    }
+    const emp = employees[indexByName.get(r.nama)];
+    emp.bagian = r.bagian;       // pakai bagian dari kemunculan terakhir (paling baru)
+    emp.fotoUrl = r.fotoUrl;     // pakai foto dari kemunculan terakhir (paling baru)
+    emp.days[day] = r.shift;
+  });
+
+  // Header
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["No", "Foto", "Nama", "Bagian"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  for (let day = 1; day <= daysInMonth; day++){
+    const th = document.createElement("th");
+    th.className = "karu-matrix__day-head";
+    th.textContent = day;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  // Body
+  const tbody = document.createElement("tbody");
+  employees.forEach((emp, idx) => {
+    const tr = document.createElement("tr");
+
+    const tdNo = document.createElement("td");
+    tdNo.className = "karu-matrix__no";
+    tdNo.textContent = idx + 1;
+    tr.appendChild(tdNo);
+
+    const tdPhoto = document.createElement("td");
+    tdPhoto.className = "karu-matrix__photo-cell";
+    const img = document.createElement("img");
+    img.className = "karu-matrix__photo";
+    img.src = karuThumbUrl(emp.fotoUrl);
+    img.alt = `Foto ${emp.nama}`;
+    img.onerror = () => { img.style.visibility = "hidden"; };
+    tdPhoto.appendChild(img);
+    tr.appendChild(tdPhoto);
+
+    const tdName = document.createElement("td");
+    tdName.className = "karu-matrix__name";
+    tdName.textContent = emp.nama;
+    tr.appendChild(tdName);
+
+    const tdBagian = document.createElement("td");
+    tdBagian.className = "karu-matrix__bagian";
+    tdBagian.textContent = emp.bagian;
+    tr.appendChild(tdBagian);
+
+    for (let day = 1; day <= daysInMonth; day++){
+      const td = document.createElement("td");
+      const shift = emp.days[day];
+      if (shift){
+        td.className = "karu-dot-cell";
+        const dot = document.createElement("span");
+        dot.className = "karu-dot";
+        const tip = document.createElement("span");
+        tip.className = "karu-dot-tooltip";
+        tip.textContent = `Hadir ${shift}`;
+        td.append(dot, tip);
+        td.addEventListener("click", () => {
+          td.classList.toggle("is-active");
+        });
+      }
+      tr.appendChild(td);
+    }
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  $("karu-matrix-summary")?.remove();
+  const summary = document.createElement("p");
+  summary.className = "karu-matrix-summary";
+  summary.id = "karu-matrix-summary";
+  summary.textContent = `${employees.length} karyawan tercatat pada ${karuMonthNames()[month]} ${year}.`;
+  $("karu-matrix-wrap").insertAdjacentElement("afterend", summary);
+}
+
 function renderKaru(){
-  const list = $("karu-list");
-  const empty = $("karu-empty");
   const calendar = $("karu-calendar");
-  list.innerHTML = "";
+  const matrixWrap = $("karu-matrix-wrap");
+  const empty = $("karu-empty");
   empty.hidden = true;
   $("karu-logout").hidden = state.karu.level !== "date";
 
-  const data = state.karu.data || [];
+  const oldSummary = document.getElementById("karu-matrix-summary");
+  if (oldSummary) oldSummary.remove();
 
   if (state.karu.level === "date"){
     $("karu-title").textContent = "Akses Karu";
     $("karu-subtitle").textContent = "Pilih tanggal untuk melihat rekap absen masuk.";
     calendar.hidden = false;
-    list.hidden = true;
+    matrixWrap.hidden = true;
     renderKaruCalendar();
     return;
   }
 
   calendar.hidden = true;
-  list.hidden = false;
-
-  if (state.karu.level === "shift"){
-    $("karu-title").textContent = "Pilih Shift";
-    $("karu-subtitle").textContent = `Tanggal: ${state.karu.selectedDate}`;
-
-    KARU_SHIFT_LIST.forEach((shift) => {
-      const count = data.filter((r) => r.tanggal === state.karu.selectedDate && r.shift === shift).length;
-      list.appendChild(karuRow(shift, `${count} orang absen`, () => {
-        state.karu.selectedShift = shift;
-        state.karu.level = "bagian";
-        renderKaru();
-      }));
-    });
-    return;
-  }
-
-  if (state.karu.level === "bagian"){
-    $("karu-title").textContent = "Pilih Bagian";
-    $("karu-subtitle").textContent = `${state.karu.selectedDate} — ${state.karu.selectedShift}`;
-
-    KARU_BAGIAN_LIST.forEach((bagian) => {
-      const count = data.filter((r) =>
-        r.tanggal === state.karu.selectedDate &&
-        r.shift === state.karu.selectedShift &&
-        r.bagian === bagian
-      ).length;
-      list.appendChild(karuRow(bagian, `${count} orang`, () => {
-        state.karu.selectedBagian = bagian;
-        state.karu.level = "nama";
-        renderKaru();
-      }));
-    });
-    return;
-  }
-
-  if (state.karu.level === "nama"){
-    $("karu-title").textContent = state.karu.selectedBagian;
-    $("karu-subtitle").textContent = `${state.karu.selectedDate} — ${state.karu.selectedShift}`;
-
-    const records = data.filter((r) =>
-      r.tanggal === state.karu.selectedDate &&
-      r.shift === state.karu.selectedShift &&
-      r.bagian === state.karu.selectedBagian
-    );
-
-    if (records.length === 0){
-      empty.hidden = false;
-      empty.textContent = "Tidak ada karyawan tercatat pada bagian ini.";
-      return;
-    }
-
-    records.forEach((r) => list.appendChild(karuEmployeeRow(r)));
-  }
+  $("karu-title").textContent = `Rekap Kehadiran — ${karuMonthNames()[state.karu.calendarMonth]} ${state.karu.calendarYear}`;
+  $("karu-subtitle").textContent = "Titik hijau menandakan karyawan hadir. Sentuh/arahkan kursor untuk melihat shift.";
+  renderKaruMatrix();
 }
 
 async function promptKaruPassword(){
@@ -851,8 +878,6 @@ $("btn-akses-karu").addEventListener("click", async () => {
       state.karu.data = result.data || [];
       state.karu.level = "date";
       state.karu.selectedDate = null;
-      state.karu.selectedShift = null;
-      state.karu.selectedBagian = null;
 
       if (state.karu.data.length > 0){
         const latest = state.karu.data
@@ -878,14 +903,9 @@ $("btn-akses-karu").addEventListener("click", async () => {
 });
 
 $("karu-back").addEventListener("click", () => {
-  if (state.karu.level === "shift"){
+  if (state.karu.level === "matrix"){
     state.karu.level = "date";
     state.karu.selectedDate = null;
-  } else if (state.karu.level === "bagian"){
-    state.karu.level = "shift";
-    state.karu.selectedBagian = null;
-  } else if (state.karu.level === "nama"){
-    state.karu.level = "bagian";
   } else {
     showView("view-home");
     return;
