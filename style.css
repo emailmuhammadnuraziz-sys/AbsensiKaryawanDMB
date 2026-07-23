@@ -625,3 +625,33 @@ textarea.input{ resize: vertical; min-height: 84px; }
 }
 
 .karu-matrix-summary{ text-align: center; margin: 12px 0 2px; font-size: 12.5px; color: var(--muted); }
+
+/* ==========================================================================
+   AKSES KARU — MENU AWAL & BAGIAN LIST & TABEL KARYAWAN
+   ========================================================================== */
+.karu-menu{ display: none; flex-direction: column; gap: 12px; }
+.karu-menu:not([hidden]){ display: flex; }
+
+.karu-list{ display: none; flex-direction: column; gap: 10px; }
+.karu-list:not([hidden]){ display: flex; }
+
+.karu-matrix-month{
+  display: none; align-items: center; justify-content: center; gap: 16px;
+  margin-bottom: 14px;
+}
+.karu-matrix-month:not([hidden]){ display: flex; }
+.karu-matrix-month__label{
+  font-family: var(--font-display); font-weight: 700; font-size: 16.5px; color: var(--text);
+  min-width: 140px; text-align: center;
+}
+
+.karu-status{
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px; font-weight: 700;
+}
+.karu-status--ontime{ background: var(--success-bg); color: var(--success-dark); }
+.karu-status--late{ background: var(--danger-bg); color: var(--danger); }
+
+.karu-emp-jam{ font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
