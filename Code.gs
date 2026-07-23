@@ -24,12 +24,17 @@ const CONFIG = {
   // Cara mendapatkan: buka folder di Google Drive, salin bagian ID pada URL-nya
   // Contoh URL: https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrSt
   // ID-nya adalah: 1AbCdEfGhIjKlMnOpQrSt
-  DRIVE_FOLDER_ID: "PASTE_FOLDER_ID_GOOGLE_DRIVE_DI_SINI",
+  DRIVE_FOLDER_ID: "1AbCdEfGhIjKlMnOpQrSt",
 
   SHEET_ABSEN_MASUK: "Absen Masuk",
   SHEET_ABSEN_IJIN: "Absen Ijin",
 
-  TIMEZONE: "Asia/Jakarta"
+  TIMEZONE: "Asia/Jakarta",
+
+  // Kode akses untuk melihat rekap absen (menu "Akses Karu" di website).
+  // Ganti kapan saja kalau kode ini perlu diperbarui — tidak perlu ubah
+  // apa pun di sisi website, cukup deploy ulang setelah mengganti nilai ini.
+  KARU_PASSWORD: "dmbstg"
 };
 
 /* ============================================================================
@@ -66,6 +71,9 @@ function doPost(e) {
       case "absenIjin":
         response = savePermission(data);
         break;
+      case "getRekap":
+        response = getRekap(data);
+        break;
       default:
         response = { status: "error", message: "Aksi tidak dikenali." };
     }
@@ -89,6 +97,9 @@ function saveAttendance(data) {
   if (!/^[A-Za-z\s]+$/.test(data.nama)) {
     return { status: "error", message: "Nama tidak boleh mengandung angka atau simbol." };
   }
+  if (!data.nomorHp || !/^[0-9+]{9,15}$/.test(data.nomorHp)) {
+    return { status: "error", message: "Nomor HP wajib diisi dengan format yang benar (9-15 digit)." };
+  }
   if (data.latitude === undefined || data.longitude === undefined) {
     return { status: "error", message: "Lokasi GPS tidak ditemukan." };
   }
@@ -98,18 +109,30 @@ function saveAttendance(data) {
 
   const sheet = getSheet_(CONFIG.SHEET_ABSEN_MASUK);
   const namaBersih = data.nama.trim().toUpperCase();
+  const nomorHpBersih = data.nomorHp.trim();
 
   // --- Cegah absen dua kali dalam satu hari ---
   if (checkDuplicateAttendance(sheet, namaBersih)) {
     return { status: "error", message: "Anda sudah melakukan Absen Masuk hari ini." };
   }
 
-  // --- Unggah foto ke Google Drive ---
+  // --- Unggah foto ke Google Drive (coba ulang otomatis kalau ada gangguan sesaat) ---
   let fotoUrl;
-  try {
-    fotoUrl = uploadPhoto(data.fotoBase64, namaBersih);
-  } catch (err) {
-    return { status: "error", message: "Gagal mengunggah foto: " + err.message };
+  let uploadError;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      fotoUrl = uploadPhoto(data.fotoBase64, namaBersih);
+      uploadError = null;
+      break;
+    } catch (err) {
+      uploadError = err;
+      if (attempt < 3) {
+        Utilities.sleep(1000 * attempt); // jeda sebelum mencoba lagi (1 detik, lalu 2 detik)
+      }
+    }
+  }
+  if (uploadError) {
+    return { status: "error", message: "Gagal mengunggah foto setelah beberapa kali percobaan: " + uploadError.message };
   }
 
   // --- Timestamp resmi dari server (bukan jam HP) ---
@@ -128,7 +151,8 @@ function saveAttendance(data) {
     data.longitude,
     data.mapsLink || `https://www.google.com/maps?q=${data.latitude},${data.longitude}`,
     fotoUrl,
-    timestampServer
+    timestampServer,
+    nomorHpBersih
   ]);
 
   return { status: "success", message: "Absen masuk berhasil dicatat.", serverTime: timestampServer };
@@ -145,7 +169,7 @@ function checkDuplicateAttendance(sheet, namaBersih) {
   // Kolom: [0] Jam, [1] Tanggal, [2] Nama, ...
   for (let i = 1; i < data.length; i++) {
     const rowNama = String(data[i][2]).trim().toUpperCase();
-    const rowTanggal = data[i][1];
+    const rowTanggal = formatCellDate_(data[i][1]);
     if (rowNama === namaBersih && rowTanggal === tanggalHariIni) {
       return true;
     }
@@ -185,6 +209,63 @@ function savePermission(data) {
   ]);
 
   return { status: "success", message: "Absen ijin berhasil dikirim.", serverTime: timestampServer };
+}
+
+/* ============================================================================
+   4b. AKSES KARU — REKAP ABSEN (Tanggal > Shift > Bagian > Nama)
+   ============================================================================ */
+function getRekap(data) {
+  if (!data.password || data.password !== CONFIG.KARU_PASSWORD) {
+    return { status: "error", message: "Kode akses salah." };
+  }
+
+  const sheet = getSheet_(CONFIG.SHEET_ABSEN_MASUK);
+  const values = sheet.getDataRange().getValues();
+  const rows = [];
+
+  // Urutan kolom: Jam(0) Tanggal(1) Nama(2) Bagian(3) Shift(4)
+  //               Latitude(5) Longitude(6) MapsLink(7) LinkFoto(8) Timestamp(9) NomorHp(10)
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (!row[2]) continue; // lewati baris kosong
+
+    rows.push({
+      jam: formatCellTime_(row[0]),
+      tanggal: formatCellDate_(row[1]),
+      nama: row[2],
+      bagian: row[3],
+      shift: row[4],
+      fotoUrl: row[8]
+    });
+  }
+
+  return { status: "success", data: rows };
+}
+
+/**
+ * formatCellDate_ — menormalkan nilai kolom Tanggal.
+ * Google Sheets kadang otomatis mengubah teks tanggal ("dd/MM/yyyy") yang
+ * dikirim dari appendRow() menjadi objek Date asli saat disimpan (tergantung
+ * pengaturan lokal spreadsheet). Fungsi ini memastikan hasilnya selalu berupa
+ * teks "dd/MM/yyyy" yang konsisten, baik saat sel berisi teks maupun Date asli.
+ */
+function formatCellDate_(value) {
+  if (Object.prototype.toString.call(value) === "[object Date]") {
+    return Utilities.formatDate(value, CONFIG.TIMEZONE, "dd/MM/yyyy");
+  }
+  return String(value);
+}
+
+/**
+ * formatCellTime_ — sama seperti formatCellDate_ tapi untuk kolom Jam.
+ * Google Sheets kadang menyimpan nilai waktu sebagai objek Date/Time asli
+ * (bukan teks "HH:mm:ss") tergantung pengaturan lokal spreadsheet.
+ */
+function formatCellTime_(value) {
+  if (Object.prototype.toString.call(value) === "[object Date]") {
+    return Utilities.formatDate(value, CONFIG.TIMEZONE, "HH:mm:ss");
+  }
+  return String(value);
 }
 
 /* ============================================================================
@@ -232,7 +313,7 @@ function getSheet_(sheetName) {
     if (sheetName === CONFIG.SHEET_ABSEN_MASUK) {
       sheet.appendRow([
         "Jam", "Tanggal", "Nama Lengkap", "Bagian", "Shift",
-        "Latitude", "Longitude", "Google Maps Link", "Link Foto", "Timestamp Server"
+        "Latitude", "Longitude", "Google Maps Link", "Link Foto", "Timestamp Server", "Nomor HP"
       ]);
     } else if (sheetName === CONFIG.SHEET_ABSEN_IJIN) {
       sheet.appendRow([
@@ -244,4 +325,17 @@ function getSheet_(sheetName) {
   }
 
   return sheet;
+}
+
+/* ============================================================================
+   8. TES AKSES DRIVE (opsional — alat bantu diagnosa)
+   ============================================================================
+   Jalankan fungsi ini secara manual dari editor Apps Script (pilih namanya di
+   dropdown sebelah tombol "Jalankan", lalu klik Jalankan) kalau muncul error
+   terkait DriveApp / getFolderById. Hasilnya bisa dilihat di menu
+   "Log eksekusi". Fungsi ini aman dibiarkan ada, tidak memengaruhi absensi.
+   ============================================================================ */
+function testAksesDrive() {
+  const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+  Logger.log("Berhasil! Nama folder: " + folder.getName());
 }
