@@ -9,7 +9,7 @@
 const CONFIG = {
   // Tempel URL Web App Google Apps Script Anda di sini setelah deploy.
   // Panduan lengkap ada di file PANDUAN-PEMULA.md
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwP82DNrZaJnkcQ1SO2bcegXD4YMCEP72QlT-5EN8gAEV9Spy7jo-ivOeWlzxmjYd2WBw/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyK6mdL_TvDEVuzer41IP5XrJB31J7PlrN9iM0_QkT668S4jKahOKabortRSdx4PF4V_Q/exec",
 
   // Koordinat lokasi kantor / pabrik: PT Sentralindo Teguh Gemilang 2
   // Jl. Raya Fatahillah No.35, Kalijaya, Kec. Cikarang Bar., Kab. Bekasi, Jawa Barat 17530
