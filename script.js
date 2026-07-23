@@ -9,7 +9,7 @@
 const CONFIG = {
   // Tempel URL Web App Google Apps Script Anda di sini setelah deploy.
   // Panduan lengkap ada di file PANDUAN-PEMULA.md
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyK6mdL_TvDEVuzer41IP5XrJB31J7PlrN9iM0_QkT668S4jKahOKabortRSdx4PF4V_Q/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwP82DNrZaJnkcQ1SO2bcegXD4YMCEP72QlT-5EN8gAEV9Spy7jo-ivOeWlzxmjYd2WBw/exec",
 
   // Koordinat lokasi kantor / pabrik: PT Sentralindo Teguh Gemilang 2
   // Jl. Raya Fatahillah No.35, Kalijaya, Kec. Cikarang Bar., Kab. Bekasi, Jawa Barat 17530
@@ -44,8 +44,9 @@ const state = {
   },
   karu: {
     data: null,
-    level: "date",          // "date" | "matrix"
+    level: "menu",          // "menu" | "date" | "bagian" | "karyawan" | "matrix"
     selectedDate: null,
+    selectedBagian: null,
     calendarYear: null,
     calendarMonth: null
   },
@@ -575,8 +576,13 @@ $("btn-kirim-ijin").addEventListener("click", async () => {
 });
 
 /* ======================================================================
-   12. AKSES KARU — LOGIN & REKAP BERTINGKAT (Tanggal > Shift > Bagian > Nama)
+   12. AKSES KARU — LOGIN & REKAP (Menu > Tanggal > Bagian > Karyawan | Matriks)
    ====================================================================== */
+const KARU_BAGIAN_LIST = ["Wrapping", "Finishing", "Partisi", "Slitter", "Corrugator", "Loading", "CY/TK"];
+
+// Batas jam masuk per shift — dipakai untuk menandai status Telat / Tepat Waktu.
+const KARU_SHIFT_CUTOFF = { "Shift 1": "08:00:00", "Shift 2": "16:00:00", "Shift 3": "00:00:00" };
+
 function karuParseTanggal(str){
   const parts = String(str).split("/");
   const d = Number(parts[0]), m = Number(parts[1]), y = Number(parts[2]);
@@ -601,11 +607,58 @@ function karuCountForDate(dateStr){
   return (state.karu.data || []).filter((r) => r.tanggal === dateStr).length;
 }
 
+function karuStatusKehadiran(jam, shift){
+  const cutoff = KARU_SHIFT_CUTOFF[shift];
+  if (!cutoff || !jam) return null;
+  return jam > cutoff ? "Telat" : "Tepat Waktu";
+}
+
+function karuRow(title, meta, onClick){
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "list-row";
+
+  const text = document.createElement("span");
+  text.className = "list-row__text";
+  const strong = document.createElement("strong");
+  strong.textContent = title;
+  const small = document.createElement("small");
+  small.textContent = meta;
+  text.append(strong, small);
+
+  const arrow = document.createElement("span");
+  arrow.className = "list-row__arrow";
+  arrow.setAttribute("aria-hidden", "true");
+  arrow.textContent = "\u203A";
+
+  btn.append(text, arrow);
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+/* ----------------------------------------------------------------------
+   Kalender bulan (dipakai untuk memilih tanggal pada alur "Absensi Karyawan")
+   ---------------------------------------------------------------------- */
 function karuSetCalendarMonth(year, month){
   state.karu.calendarYear = year;
   state.karu.calendarMonth = month;
-  $("karu-cal-picker").value = karuFormatMonthInput(year, month);
+  const picker = $("karu-cal-picker");
+  if (picker) picker.value = karuFormatMonthInput(year, month);
   renderKaruCalendar();
+}
+
+function karuChangeMonth(delta){
+  let y = state.karu.calendarYear, m = state.karu.calendarMonth + delta;
+  if (m < 0){ m = 11; y -= 1; } else if (m > 11){ m = 0; y += 1; }
+  state.karu.calendarYear = y;
+  state.karu.calendarMonth = m;
+  if (state.karu.level === "matrix"){
+    renderKaruMatrix();
+  } else {
+    const picker = $("karu-cal-picker");
+    if (picker) picker.value = karuFormatMonthInput(y, m);
+    renderKaruCalendar();
+  }
 }
 
 function renderKaruCalendar(){
@@ -654,7 +707,7 @@ function renderKaruCalendar(){
 
     btn.addEventListener("click", () => {
       state.karu.selectedDate = dateStr;
-      state.karu.level = "matrix";
+      state.karu.level = "bagian";
       renderKaru();
     });
 
@@ -666,36 +719,117 @@ function renderKaruCalendar(){
     : `Belum ada absen tercatat pada ${karuMonthNames()[month]} ${year}.`;
 }
 
-$("karu-cal-prev").addEventListener("click", () => {
-  let y = state.karu.calendarYear, m = state.karu.calendarMonth - 1;
-  if (m < 0){ m = 11; y -= 1; }
-  karuSetCalendarMonth(y, m);
-});
-
-$("karu-cal-next").addEventListener("click", () => {
-  let y = state.karu.calendarYear, m = state.karu.calendarMonth + 1;
-  if (m > 11){ m = 0; y += 1; }
-  karuSetCalendarMonth(y, m);
-});
+$("karu-cal-prev").addEventListener("click", () => karuChangeMonth(-1));
+$("karu-cal-next").addEventListener("click", () => karuChangeMonth(1));
+$("karu-matrix-prev").addEventListener("click", () => karuChangeMonth(-1));
+$("karu-matrix-next").addEventListener("click", () => karuChangeMonth(1));
 
 $("karu-cal-picker").addEventListener("change", (e) => {
   const [y, m] = e.target.value.split("-").map(Number);
   if (y && m) karuSetCalendarMonth(y, m - 1);
 });
 
-/**
- * renderKaruMatrix — membangun tabel matriks kehadiran bulanan.
- * Baris = karyawan (urut sesuai kemunculan pertama di data, yang secara
- * alami sudah kronologis karena sheet diisi lewat appendRow saat absen).
- * Kolom = setiap tanggal di bulan yang sedang dipilih. Sel berisi titik
- * hijau kalau karyawan tercatat absen pada tanggal itu, dengan tooltip
- * berisi shift saat disentuh/di-hover.
- */
+/* ----------------------------------------------------------------------
+   Level "bagian" — daftar 7 bagian dengan jumlah karyawan pada tanggal terpilih
+   ---------------------------------------------------------------------- */
+function renderKaruBagianList(){
+  const list = $("karu-list");
+  list.innerHTML = "";
+  const data = state.karu.data || [];
+
+  KARU_BAGIAN_LIST.forEach((bagian) => {
+    const count = data.filter((r) => r.tanggal === state.karu.selectedDate && r.bagian === bagian).length;
+    list.appendChild(karuRow(bagian, `${count} orang absen`, () => {
+      state.karu.selectedBagian = bagian;
+      state.karu.level = "karyawan";
+      renderKaru();
+    }));
+  });
+}
+
+/* ----------------------------------------------------------------------
+   Level "karyawan" — tabel Foto | Nama | Waktu Masuk | Status untuk
+   tanggal + bagian yang dipilih.
+   ---------------------------------------------------------------------- */
+function renderKaruEmployeeTable(){
+  const table = $("karu-emp-table");
+  const empty = $("karu-empty");
+  table.innerHTML = "";
+
+  const records = (state.karu.data || []).filter((r) =>
+    r.tanggal === state.karu.selectedDate && r.bagian === state.karu.selectedBagian
+  );
+
+  if (records.length === 0){
+    empty.hidden = false;
+    empty.textContent = "Tidak ada karyawan tercatat pada bagian ini.";
+    $("karu-emp-wrap").hidden = true;
+    return;
+  }
+  empty.hidden = true;
+  $("karu-emp-wrap").hidden = false;
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["Foto", "Nama", "Waktu Masuk", "Status"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  records.forEach((r) => {
+    const tr = document.createElement("tr");
+
+    const tdPhoto = document.createElement("td");
+    tdPhoto.className = "karu-matrix__photo-cell";
+    const img = document.createElement("img");
+    img.className = "karu-matrix__photo";
+    img.src = karuThumbUrl(r.fotoUrl);
+    img.alt = `Foto ${r.nama}`;
+    img.onerror = () => { img.style.visibility = "hidden"; };
+    tdPhoto.appendChild(img);
+    tr.appendChild(tdPhoto);
+
+    const tdName = document.createElement("td");
+    tdName.className = "karu-matrix__name";
+    tdName.textContent = r.nama;
+    tr.appendChild(tdName);
+
+    const tdJam = document.createElement("td");
+    tdJam.className = "karu-emp-jam";
+    tdJam.textContent = r.jam || "-";
+    tr.appendChild(tdJam);
+
+    const tdStatus = document.createElement("td");
+    const status = karuStatusKehadiran(r.jam, r.shift);
+    if (status){
+      const badge = document.createElement("span");
+      badge.className = "karu-status " + (status === "Telat" ? "karu-status--late" : "karu-status--ontime");
+      badge.textContent = `${status} (${r.shift})`;
+      tdStatus.appendChild(badge);
+    } else {
+      tdStatus.textContent = "-";
+    }
+    tr.appendChild(tdStatus);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+/* ----------------------------------------------------------------------
+   Level "matrix" — tabel rekap kehadiran satu bulan penuh (semua karyawan)
+   ---------------------------------------------------------------------- */
 function renderKaruMatrix(){
   const year = state.karu.calendarYear;
   const month = state.karu.calendarMonth;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const data = state.karu.data || [];
+
+  $("karu-matrix-month-label").textContent = `${karuMonthNames()[month]} ${year}`;
 
   const recordsBulanIni = data.filter((r) => {
     const d = karuParseTanggal(r.tanggal);
@@ -714,8 +848,7 @@ function renderKaruMatrix(){
   $("karu-empty").hidden = true;
   $("karu-matrix-wrap").hidden = false;
 
-  // Bangun daftar karyawan unik, urut berdasar kemunculan pertama.
-  const employees = []; // [{ nama, bagian, fotoUrl, days: { [day]: shift } }]
+  const employees = [];
   const indexByName = new Map();
 
   recordsBulanIni.forEach((r) => {
@@ -725,12 +858,11 @@ function renderKaruMatrix(){
       employees.push({ nama: r.nama, bagian: r.bagian, fotoUrl: r.fotoUrl, days: {} });
     }
     const emp = employees[indexByName.get(r.nama)];
-    emp.bagian = r.bagian;       // pakai bagian dari kemunculan terakhir (paling baru)
-    emp.fotoUrl = r.fotoUrl;     // pakai foto dari kemunculan terakhir (paling baru)
+    emp.bagian = r.bagian;
+    emp.fotoUrl = r.fotoUrl;
     emp.days[day] = r.shift;
   });
 
-  // Header
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   ["No", "Foto", "Nama", "Bagian"].forEach((label) => {
@@ -747,7 +879,6 @@ function renderKaruMatrix(){
   thead.appendChild(headRow);
   table.appendChild(thead);
 
-  // Body
   const tbody = document.createElement("tbody");
   employees.forEach((emp, idx) => {
     const tr = document.createElement("tr");
@@ -788,9 +919,7 @@ function renderKaruMatrix(){
         tip.className = "karu-dot-tooltip";
         tip.textContent = `Hadir ${shift}`;
         td.append(dot, tip);
-        td.addEventListener("click", () => {
-          td.classList.toggle("is-active");
-        });
+        td.addEventListener("click", () => td.classList.toggle("is-active"));
       }
       tr.appendChild(td);
     }
@@ -799,7 +928,8 @@ function renderKaruMatrix(){
   });
   table.appendChild(tbody);
 
-  $("karu-matrix-summary")?.remove();
+  const oldSummary = document.getElementById("karu-matrix-summary");
+  if (oldSummary) oldSummary.remove();
   const summary = document.createElement("p");
   summary.className = "karu-matrix-summary";
   summary.id = "karu-matrix-summary";
@@ -807,30 +937,74 @@ function renderKaruMatrix(){
   $("karu-matrix-wrap").insertAdjacentElement("afterend", summary);
 }
 
-function renderKaru(){
-  const calendar = $("karu-calendar");
-  const matrixWrap = $("karu-matrix-wrap");
-  const empty = $("karu-empty");
-  empty.hidden = true;
-  $("karu-logout").hidden = state.karu.level !== "date";
-
+/* ----------------------------------------------------------------------
+   Router tampilan utama Akses Karu
+   ---------------------------------------------------------------------- */
+function karuHideAllSections(){
+  $("karu-menu").hidden = true;
+  $("karu-calendar").hidden = true;
+  $("karu-list").hidden = true;
+  $("karu-emp-wrap").hidden = true;
+  $("karu-matrix-month").hidden = true;
+  $("karu-matrix-wrap").hidden = true;
+  $("karu-empty").hidden = true;
   const oldSummary = document.getElementById("karu-matrix-summary");
   if (oldSummary) oldSummary.remove();
+}
+
+function renderKaru(){
+  karuHideAllSections();
+  $("karu-logout").hidden = state.karu.level !== "menu";
+
+  if (state.karu.level === "menu"){
+    $("karu-title").textContent = "Akses Karu";
+    $("karu-subtitle").textContent = "Pilih tampilan yang ingin dilihat.";
+    $("karu-menu").hidden = false;
+    return;
+  }
 
   if (state.karu.level === "date"){
-    $("karu-title").textContent = "Akses Karu";
+    $("karu-title").textContent = "Absensi Karyawan";
     $("karu-subtitle").textContent = "Pilih tanggal untuk melihat rekap absen masuk.";
-    calendar.hidden = false;
-    matrixWrap.hidden = true;
+    $("karu-calendar").hidden = false;
     renderKaruCalendar();
     return;
   }
 
-  calendar.hidden = true;
-  $("karu-title").textContent = `Rekap Kehadiran — ${karuMonthNames()[state.karu.calendarMonth]} ${state.karu.calendarYear}`;
-  $("karu-subtitle").textContent = "Titik hijau menandakan karyawan hadir. Sentuh/arahkan kursor untuk melihat shift.";
-  renderKaruMatrix();
+  if (state.karu.level === "bagian"){
+    $("karu-title").textContent = "Pilih Bagian";
+    $("karu-subtitle").textContent = `Tanggal: ${state.karu.selectedDate}`;
+    $("karu-list").hidden = false;
+    renderKaruBagianList();
+    return;
+  }
+
+  if (state.karu.level === "karyawan"){
+    $("karu-title").textContent = state.karu.selectedBagian;
+    $("karu-subtitle").textContent = `Tanggal: ${state.karu.selectedDate}`;
+    $("karu-emp-wrap").hidden = false;
+    renderKaruEmployeeTable();
+    return;
+  }
+
+  if (state.karu.level === "matrix"){
+    $("karu-title").textContent = "Rekap Kehadiran";
+    $("karu-subtitle").textContent = "Titik hijau menandakan karyawan hadir. Sentuh/arahkan kursor untuk melihat shift.";
+    $("karu-matrix-month").hidden = false;
+    $("karu-matrix-wrap").hidden = false;
+    renderKaruMatrix();
+  }
 }
+
+$("karu-menu-absensi").addEventListener("click", () => {
+  state.karu.level = "date";
+  renderKaru();
+});
+
+$("karu-menu-rekap").addEventListener("click", () => {
+  state.karu.level = "matrix";
+  renderKaru();
+});
 
 async function promptKaruPassword(){
   const { value: password } = await Swal.fire({
@@ -876,8 +1050,9 @@ $("btn-akses-karu").addEventListener("click", async () => {
 
     if (result.status === "success"){
       state.karu.data = result.data || [];
-      state.karu.level = "date";
+      state.karu.level = "menu";
       state.karu.selectedDate = null;
+      state.karu.selectedBagian = null;
 
       if (state.karu.data.length > 0){
         const latest = state.karu.data
@@ -903,9 +1078,16 @@ $("btn-akses-karu").addEventListener("click", async () => {
 });
 
 $("karu-back").addEventListener("click", () => {
-  if (state.karu.level === "matrix"){
+  if (state.karu.level === "date"){
+    state.karu.level = "menu";
+  } else if (state.karu.level === "bagian"){
     state.karu.level = "date";
     state.karu.selectedDate = null;
+  } else if (state.karu.level === "karyawan"){
+    state.karu.level = "bagian";
+    state.karu.selectedBagian = null;
+  } else if (state.karu.level === "matrix"){
+    state.karu.level = "menu";
   } else {
     showView("view-home");
     return;
@@ -917,6 +1099,7 @@ $("karu-logout").addEventListener("click", () => {
   state.karu.data = null;
   showView("view-home");
 });
+
 
 /* ======================================================================
    13. PWA — INSTALL PROMPT
