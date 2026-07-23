@@ -269,7 +269,7 @@
   </section>
 
   <!-- ======================= AKSES KARU (REKAP ABSEN) ======================= -->
-  <section id="view-karu" class="view">
+  <section id="view-karu" class="view view--wide">
     <div class="card">
       <button class="btn-back" id="karu-back" aria-label="Kembali">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -292,7 +292,9 @@
         <p class="karu-cal-summary" id="karu-cal-summary"></p>
       </div>
 
-      <div id="karu-list" class="karu-list"></div>
+      <div id="karu-matrix-wrap" class="karu-matrix-wrap" hidden>
+        <table class="karu-matrix" id="karu-matrix"></table>
+      </div>
       <p id="karu-empty" class="karu-empty" hidden></p>
 
       <button class="link-action" id="karu-logout" hidden>Keluar dari Akses Karu</button>
